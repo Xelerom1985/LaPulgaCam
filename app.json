@@ -1,24 +1,55 @@
 {
   "expo": {
-    "name": "LaPulgaCamApp",
+    "name": "LaPulgaCam",
     "slug": "LaPulgaCamApp",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "landscape",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
+    "userInterfaceStyle": "dark",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.lapulgacam.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "LaPulgaCam necesita acceso a la cámara para grabar partidos",
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "LaPulgaCam necesita el micrófono para grabar el audio del partido"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Permite guardar los videos del partido en tu galería",
+          "savePhotosPermission": "Permite guardar los videos del partido en tu galería"
+        }
+      ],
+      [
+        "expo-image-picker",
+        { "photosPermission": "Permite elegir el escudo del equipo desde tu galería" }
+      ],
+      ["expo-av", {}],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
+    ]
   }
 }
