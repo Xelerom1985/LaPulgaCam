@@ -16,18 +16,11 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "plugins": [
-      [
-        "react-native-vision-camera",
-        {
-          "cameraPermissionText": "LaPulgaCam necesita acceso a la cámara para grabar partidos",
-          "enableMicrophonePermission": true,
-          "microphonePermissionText": "LaPulgaCam necesita el micrófono para grabar el audio del partido"
-        }
-      ],
       [
         "expo-media-library",
         {
