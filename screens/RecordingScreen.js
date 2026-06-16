@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { useCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
@@ -10,18 +10,25 @@ const BANNER_W = 280
 const BANNER_H = 90
 const ROW_H = 44
 
-function hexToRgb(hex) {
-  'worklet'
-  const r = parseInt(hex.slice(1, 3), 16) / 255
-  const g = parseInt(hex.slice(3, 5), 16) / 255
-  const b = parseInt(hex.slice(5, 7), 16) / 255
-  return { r, g, b }
-}
+// Objetos Skia creados UNA VEZ al cargar el módulo (no en cada frame)
+const bgPaint = Skia.Paint()
+bgPaint.setColor(Skia.Color('rgba(0,0,0,0.85)'))
+bgPaint.setAntiAlias(true)
 
-function makeSkiaColor(hex, alpha = 1) {
-  const { r, g, b } = hexToRgb(hex)
-  return Skia.Color(r, g, b, alpha)
-}
+const divPaint = Skia.Paint()
+divPaint.setColor(Skia.Color('rgba(255,255,255,0.15)'))
+
+const textPaint = Skia.Paint()
+textPaint.setColor(Skia.Color('#ffffff'))
+
+const circlePaint = Skia.Paint()
+circlePaint.setAntiAlias(true)
+
+const scoreBoxPaint = Skia.Paint()
+scoreBoxPaint.setColor(Skia.Color('rgba(255,255,255,0.2)'))
+
+const font = Skia.Font(null, 16)
+const fontScore = Skia.Font(null, 22)
 
 function fmt(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -31,41 +38,34 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const { hasPermission, requestPermission } = useCameraPermission()
   const { hasPermission: hasMicPermission, requestPermission: requestMicPermission } = useMicrophonePermission()
   const device = useCameraDevice('back')
-  const [debugInfo, setDebugInfo] = useState('')
-
-  useEffect(() => {
-    Camera.getAvailableCameraDevices()
-      .then((devices) => {
-        const info = devices.map(d => `${d.position} | id:${d.id} | physical:${d.physicalDevices?.join(',')}`).join('\n')
-        setDebugInfo(`hasPermission: ${hasPermission}\nDispositivos encontrados: ${devices.length}\n${info}`)
-      })
-      .catch((e) => setDebugInfo(`Error listando cámaras: ${e.message}`))
-  }, [hasPermission])
   const cameraRef = useRef(null)
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [zoom, setZoom] = useState(1)
   const startTimeRef = useRef(null)
+  // Modo diagnóstico: sin frame processor, para aislar el problema
+  const [noOverlay, setNoOverlay] = useState(false)
 
-  // Shared values for the worklet (frame processor runs off main thread)
+  // Colores pre-convertidos a SkColor (número), no strings hex en el worklet
   const localScore = useSharedValue(local.score)
   const visitanteScore = useSharedValue(visitante.score)
   const localName = useSharedValue(local.name)
   const visitanteName = useSharedValue(visitante.name)
-  const localColor = useSharedValue(local.color)
-  const visitanteColor = useSharedValue(visitante.color)
-  const bannerBgColor = useSharedValue(bannerBg)
+  const localColorVal = useSharedValue(Skia.Color(local.color))
+  const visitanteColorVal = useSharedValue(Skia.Color(visitante.color))
 
-  // Keep shared values in sync
   useEffect(() => { localScore.value = local.score }, [local.score])
   useEffect(() => { visitanteScore.value = visitante.score }, [visitante.score])
   useEffect(() => { localName.value = local.name }, [local.name])
   useEffect(() => { visitanteName.value = visitante.name }, [visitante.name])
-  useEffect(() => { localColor.value = local.color }, [local.color])
-  useEffect(() => { visitanteColor.value = visitante.color }, [visitante.color])
-  useEffect(() => { bannerBgColor.value = bannerBg }, [bannerBg])
+  useEffect(() => { localColorVal.value = Skia.Color(local.color) }, [local.color])
+  useEffect(() => { visitanteColorVal.value = Skia.Color(visitante.color) }, [visitante.color])
 
-  // Timer
+  useEffect(() => {
+    if (!hasPermission) requestPermission()
+    if (!hasMicPermission) requestMicPermission()
+  }, [hasPermission, hasMicPermission])
+
   useEffect(() => {
     if (!recording) return
     const id = setInterval(() => {
@@ -74,67 +74,36 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return () => clearInterval(id)
   }, [recording])
 
-  useEffect(() => {
-    if (!hasPermission) requestPermission()
-    if (!hasMicPermission) requestMicPermission()
-  }, [hasPermission, hasMicPermission])
-
-  // Skia frame processor — draws banner on every frame (burned into recording)
   const frameProcessor = useSkiaFrameProcessor((frame) => {
     'worklet'
     frame.render()
 
-    const bx = BANNER_X
-    const by = BANNER_Y
-
-    // Background
-    const bgPaint = Skia.Paint()
-    bgPaint.setColor(Skia.Color(0, 0, 0, 0.85))
-    bgPaint.setAntiAlias(true)
-    const rrect = Skia.RRectXY(Skia.XYWHRect(bx, by, BANNER_W, BANNER_H), 8, 8)
-    frame.drawRRect(rrect, bgPaint)
-
-    // Divider
-    const divPaint = Skia.Paint()
-    divPaint.setColor(Skia.Color(1, 1, 1, 0.15))
-    frame.drawRect(Skia.XYWHRect(bx, by + ROW_H, BANNER_W, 1), divPaint)
+    frame.drawRRect(
+      Skia.RRectXY(Skia.XYWHRect(BANNER_X, BANNER_Y, BANNER_W, BANNER_H), 8, 8),
+      bgPaint
+    )
+    frame.drawRect(Skia.XYWHRect(BANNER_X, BANNER_Y + ROW_H, BANNER_W, 1), divPaint)
 
     const teams = [
-      { name: localName.value, score: localScore.value, color: localColor.value },
-      { name: visitanteName.value, score: visitanteScore.value, color: visitanteColor.value },
+      { name: localName.value, score: localScore.value, color: localColorVal.value },
+      { name: visitanteName.value, score: visitanteScore.value, color: visitanteColorVal.value },
     ]
 
-    const font = Skia.Font(null, 16)
-    const fontScore = Skia.Font(null, 22)
-
-    teams.forEach((team, i) => {
-      const ry = by + i * ROW_H
+    for (let i = 0; i < 2; i++) {
+      const team = teams[i]
+      const ry = BANNER_Y + i * ROW_H
       const cy = ry + ROW_H / 2
 
-      // Team color circle
-      const circlePaint = Skia.Paint()
-      circlePaint.setColor(Skia.Color(...Object.values(hexToRgb(team.color)), 1))
-      circlePaint.setAntiAlias(true)
-      frame.drawCircle(bx + 14 + 12, cy, 12, circlePaint)
-
-      // Team name
-      const textPaint = Skia.Paint()
-      textPaint.setColor(Skia.Color(1, 1, 1, 1))
-      frame.drawText(team.name, bx + 40, cy + 6, font, textPaint)
-
-      // Score box
-      const scoreBoxPaint = Skia.Paint()
-      scoreBoxPaint.setColor(Skia.Color(1, 1, 1, 0.2))
+      circlePaint.setColor(team.color)
+      frame.drawCircle(BANNER_X + 26, cy, 12, circlePaint)
+      frame.drawText(team.name, BANNER_X + 44, cy + 6, font, textPaint)
       frame.drawRRect(
-        Skia.RRectXY(Skia.XYWHRect(bx + BANNER_W - 44, ry + 8, 36, ROW_H - 16), 4, 4),
+        Skia.RRectXY(Skia.XYWHRect(BANNER_X + BANNER_W - 44, ry + 8, 36, ROW_H - 16), 4, 4),
         scoreBoxPaint
       )
-
-      // Score text
-      const scoreText = String(team.score)
-      frame.drawText(scoreText, bx + BANNER_W - 44 + 10, cy + 8, fontScore, textPaint)
-    })
-  }, [localScore, visitanteScore, localName, visitanteName, localColor, visitanteColor])
+      frame.drawText(String(team.score), BANNER_X + BANNER_W - 34, cy + 8, fontScore, textPaint)
+    }
+  }, [localScore, visitanteScore, localName, visitanteName, localColorVal, visitanteColorVal])
 
   const startRecording = () => {
     if (!cameraRef.current) return
@@ -153,7 +122,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         },
       })
     } catch (e) {
-      Alert.alert('Error al iniciar grabación', e.message)
+      Alert.alert('Error al iniciar', e.message)
       setRecording(false)
     }
   }
@@ -185,7 +154,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return (
       <View style={s.center}>
         <Text style={s.permText}>No se encontró cámara</Text>
-        <Text style={[s.permText, { fontSize: 12, textAlign: 'left' }]}>{debugInfo}</Text>
       </View>
     )
   }
@@ -193,6 +161,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   return (
     <View style={s.container}>
       <Camera
+        key={noOverlay ? 'nofp' : 'fp'}
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
@@ -200,13 +169,19 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         video={true}
         audio={true}
         zoom={zoom}
-        frameProcessor={frameProcessor}
-        pixelFormat="rgb"
+        frameProcessor={noOverlay ? undefined : frameProcessor}
+        pixelFormat={noOverlay ? undefined : 'rgb'}
       />
 
-      {/* Bottom controls */}
+      {/* Botón diagnóstico: alterna sin/con overlay */}
+      <TouchableOpacity
+        style={[s.diagBtn, noOverlay && s.diagBtnActive]}
+        onPress={() => { if (!recording) setNoOverlay(v => !v) }}
+      >
+        <Text style={s.diagText}>{noOverlay ? 'SIN OVERLAY' : 'CON OVERLAY'}</Text>
+      </TouchableOpacity>
+
       <View style={s.controls}>
-        {/* Local score */}
         <View style={s.scoreGroup}>
           <Text style={s.teamLabel}>{local.name}</Text>
           <View style={s.scoreRow}>
@@ -220,7 +195,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
           </View>
         </View>
 
-        {/* Center: timer + record + zoom */}
         <View style={s.centerControls}>
           {recording && <Text style={s.timer}>⏺ {fmt(elapsed)}</Text>}
           <TouchableOpacity
@@ -236,7 +210,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
           </View>
         </View>
 
-        {/* Visitante score */}
         <View style={s.scoreGroup}>
           <Text style={s.teamLabel}>{visitante.name}</Text>
           <View style={s.scoreRow}>
@@ -260,12 +233,19 @@ const s = StyleSheet.create({
   permText: { color: '#fff', fontSize: 16 },
   permBtn: { backgroundColor: '#f0c040', padding: 12, borderRadius: 10 },
   permBtnText: { color: '#1a1a2e', fontWeight: 'bold' },
+  diagBtn: {
+    position: 'absolute', top: 12, right: 12,
+    paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 6,
+    borderWidth: 1, borderColor: '#555',
+  },
+  diagBtnActive: { borderColor: '#f0c040' },
+  diagText: { color: '#888', fontSize: 10 },
   controls: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'flex-end',
     paddingHorizontal: 16, paddingBottom: 16, paddingTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    gap: 12,
+    backgroundColor: 'rgba(0,0,0,0.75)', gap: 12,
   },
   scoreGroup: { flex: 1, alignItems: 'center', gap: 4 },
   teamLabel: { color: '#aaa', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
