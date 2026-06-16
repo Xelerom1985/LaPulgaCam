@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
-import { useCameraDevice, useCameraPermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
+import { useCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
 import { useSharedValue } from 'react-native-worklets-core'
 
@@ -11,6 +11,7 @@ const BANNER_H = 90
 const ROW_H = 44
 
 function hexToRgb(hex) {
+  'worklet'
   const r = parseInt(hex.slice(1, 3), 16) / 255
   const g = parseInt(hex.slice(3, 5), 16) / 255
   const b = parseInt(hex.slice(5, 7), 16) / 255
@@ -28,9 +29,18 @@ function fmt(s) {
 
 export default function RecordingScreen({ local, setLocal, visitante, setVisitante, bannerBg, onStop }) {
   const { hasPermission, requestPermission } = useCameraPermission()
-  const device = useCameraDevice('back', {
-    physicalDevices: ['ultra-wide-angle-camera', 'wide-angle-camera', 'telephoto-camera'],
-  })
+  const { hasPermission: hasMicPermission, requestPermission: requestMicPermission } = useMicrophonePermission()
+  const device = useCameraDevice('back')
+  const [debugInfo, setDebugInfo] = useState('')
+
+  useEffect(() => {
+    Camera.getAvailableCameraDevices()
+      .then((devices) => {
+        const info = devices.map(d => `${d.position} | id:${d.id} | physical:${d.physicalDevices?.join(',')}`).join('\n')
+        setDebugInfo(`hasPermission: ${hasPermission}\nDispositivos encontrados: ${devices.length}\n${info}`)
+      })
+      .catch((e) => setDebugInfo(`Error listando cámaras: ${e.message}`))
+  }, [hasPermission])
   const cameraRef = useRef(null)
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -66,7 +76,8 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
 
   useEffect(() => {
     if (!hasPermission) requestPermission()
-  }, [hasPermission])
+    if (!hasMicPermission) requestMicPermission()
+  }, [hasPermission, hasMicPermission])
 
   // Skia frame processor — draws banner on every frame (burned into recording)
   const frameProcessor = useSkiaFrameProcessor((frame) => {
@@ -166,6 +177,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return (
       <View style={s.center}>
         <Text style={s.permText}>No se encontró cámara</Text>
+        <Text style={[s.permText, { fontSize: 12, textAlign: 'left' }]}>{debugInfo}</Text>
       </View>
     )
   }
@@ -178,7 +190,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         device={device}
         isActive={true}
         video={true}
-        audio={true}
+        audio={hasMicPermission}
         zoom={zoom}
         frameProcessor={frameProcessor}
         videoHdr={false}

@@ -1,0 +1,124 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- App background -->
+  <rect width="1024" height="1024" fill="#0a0a0a" rx="170"/>
+
+  <defs>
+    <!-- Outer shield clip -->
+    <clipPath id="outerShield">
+      <path d="M 512,88
+               C 490,88 468,96 452,112 C 436,128 415,144 390,148
+               C 365,152 338,144 314,138 C 280,130 248,140 224,162
+               L 190,200 L 190,570
+               C 190,755 512,942 512,942
+               C 512,942 834,755 834,570
+               L 834,200 L 800,162
+               C 776,140 744,130 710,138
+               C 686,144 659,152 634,148
+               C 609,144 588,128 572,112
+               C 556,96 534,88 512,88 Z"/>
+    </clipPath>
+    <!-- Inner shield clip (for white area with thin border effect) -->
+    <clipPath id="innerShield">
+      <path d="M 512,108
+               C 492,108 472,115 457,130 C 442,145 423,159 400,163
+               C 377,167 352,160 329,154 C 298,147 269,156 247,176
+               L 218,210 L 218,568
+               C 218,742 512,918 512,918
+               C 512,918 806,742 806,568
+               L 806,210 L 777,176
+               C 755,156 726,147 695,154
+               C 672,160 647,167 624,163
+               C 601,159 582,145 567,130
+               C 552,115 532,108 512,108 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Outer shield (black border) -->
+  <path d="M 512,88
+           C 490,88 468,96 452,112 C 436,128 415,144 390,148
+           C 365,152 338,144 314,138 C 280,130 248,140 224,162
+           L 190,200 L 190,570
+           C 190,755 512,942 512,942
+           C 512,942 834,755 834,570
+           L 834,200 L 800,162
+           C 776,140 744,130 710,138
+           C 686,144 659,152 634,148
+           C 609,144 588,128 572,112
+           C 556,96 534,88 512,88 Z"
+        fill="#111111"/>
+
+  <!-- White base fill inside shield -->
+  <rect x="0" y="0" width="1024" height="1024" fill="white" clip-path="url(#innerShield)"/>
+
+  <!-- Maroon diagonal section: upper-right portion of shield -->
+  <!-- Diagonal from ~(218,660) bottom-left to ~(806,225) top-right -->
+  <polygon points="218,108 806,108 806,918 218,918 218,660 490,108"
+           fill="#7B1C1C" clip-path="url(#innerShield)"/>
+
+  <!-- Inner shield border line -->
+  <path d="M 512,108
+           C 492,108 472,115 457,130 C 442,145 423,159 400,163
+           C 377,167 352,160 329,154 C 298,147 269,156 247,176
+           L 218,210 L 218,568
+           C 218,742 512,918 512,918
+           C 512,918 806,742 806,568
+           L 806,210 L 777,176
+           C 755,156 726,147 695,154
+           C 672,160 647,167 624,163
+           C 601,159 582,145 567,130
+           C 552,115 532,108 512,108 Z"
+        fill="none" stroke="#111111" stroke-width="8"/>
+
+  <!-- TEXT: "CLUB SOC. Y DEP." in maroon section -->
+  <text x="640" y="262" font-family="Arial Black, Impact, sans-serif" font-weight="900"
+        font-size="50" fill="white" text-anchor="middle" letter-spacing="-1">CLUB SOC.</text>
+  <text x="660" y="320" font-family="Arial Black, Impact, sans-serif" font-weight="900"
+        font-size="48" fill="white" text-anchor="middle" letter-spacing="-1">Y DEP.</text>
+  <text x="680" y="390" font-family="Arial Black, Impact, sans-serif" font-weight="900"
+        font-size="52" fill="white" text-anchor="middle">21 de</text>
+
+  <!-- SEPTIEMBRE diagonal text along the sash boundary -->
+  <text transform="rotate(-41, 512, 530)"
+        x="512" y="540"
+        font-family="Arial Black, Impact, sans-serif" font-weight="900"
+        font-size="74" fill="white" text-anchor="middle" letter-spacing="2">SEPTIEMBRE</text>
+
+  <!-- VIDEO CAMERA icon in white (lower-left) section of shield -->
+  <g transform="translate(242, 680)">
+    <!-- Camera body -->
+    <rect x="0" y="8" width="140" height="90" rx="14" fill="#7B1C1C"/>
+    <!-- Camera body inner -->
+    <rect x="6" y="14" width="128" height="78" rx="10" fill="#9b2424"/>
+    <!-- Lens ring outer -->
+    <circle cx="58" cy="53" r="34" fill="#5a1515"/>
+    <!-- Lens glass -->
+    <circle cx="58" cy="53" r="24" fill="#1a0a0a"/>
+    <!-- Lens reflection -->
+    <circle cx="58" cy="53" r="16" fill="#2a1a1a"/>
+    <circle cx="50" cy="44" r="5" fill="rgba(255,255,255,0.25)"/>
+    <!-- Lens ring detail -->
+    <circle cx="58" cy="53" r="32" fill="none" stroke="#7B1C1C" stroke-width="3"/>
+    <!-- Record button (red dot) -->
+    <circle cx="118" cy="28" r="13" fill="#cc2222"/>
+    <circle cx="118" cy="28" r="8" fill="#ff3333"/>
+    <!-- Viewfinder bump on top -->
+    <rect x="44" y="-2" width="36" height="14" rx="5" fill="#5a1515"/>
+    <!-- Camera side triangles (video symbol) -->
+    <polygon points="150,23 150,83 195,53" fill="#7B1C1C"/>
+    <polygon points="153,28 153,78 190,53" fill="#9b2424"/>
+  </g>
+
+  <!-- Outer shield stroke on top of everything -->
+  <path d="M 512,88
+           C 490,88 468,96 452,112 C 436,128 415,144 390,148
+           C 365,152 338,144 314,138 C 280,130 248,140 224,162
+           L 190,200 L 190,570
+           C 190,755 512,942 512,942
+           C 512,942 834,755 834,570
+           L 834,200 L 800,162
+           C 776,140 744,130 710,138
+           C 686,144 659,152 634,148
+           C 609,144 588,128 572,112
+           C 556,96 534,88 512,88 Z"
+        fill="none" stroke="#111111" stroke-width="18"/>
+</svg>
