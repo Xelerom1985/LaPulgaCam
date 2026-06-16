@@ -136,18 +136,26 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     })
   }, [localScore, visitanteScore, localName, visitanteName, localColor, visitanteColor])
 
-  const startRecording = async () => {
+  const startRecording = () => {
     if (!cameraRef.current) return
-    startTimeRef.current = Date.now()
-    setRecording(true)
-    cameraRef.current.startRecording({
-      videoCodec: 'h264',
-      onRecordingFinished: (video) => onStop(video.path),
-      onRecordingError: (e) => {
-        Alert.alert('Error', 'No se pudo grabar el video.')
-        setRecording(false)
-      },
-    })
+    try {
+      startTimeRef.current = Date.now()
+      setRecording(true)
+      cameraRef.current.startRecording({
+        fileType: 'mp4',
+        onRecordingFinished: (video) => {
+          setRecording(false)
+          onStop(video.path)
+        },
+        onRecordingError: (e) => {
+          Alert.alert('Error al grabar', e.message)
+          setRecording(false)
+        },
+      })
+    } catch (e) {
+      Alert.alert('Error al iniciar grabación', e.message)
+      setRecording(false)
+    }
   }
 
   const stopRecording = async () => {
@@ -190,11 +198,10 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         device={device}
         isActive={true}
         video={true}
-        audio={hasMicPermission}
+        audio={true}
         zoom={zoom}
         frameProcessor={frameProcessor}
-        videoHdr={false}
-        pixelFormat="yuv"
+        pixelFormat="rgb"
       />
 
       {/* Bottom controls */}
