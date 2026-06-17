@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { useCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
@@ -23,51 +23,23 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const [elapsed, setElapsed] = useState(0)
   const [zoom, setZoom] = useState(1)
   const startTimeRef = useRef(null)
-  const [noOverlay, setNoOverlay] = useState(false)
+  // Empieza en SIN OVERLAY para probar grabación básica primero
+  const [noOverlay, setNoOverlay] = useState(true)
 
-  // Objetos Skia creados una vez cuando el componente monta (Skia ya está inicializado)
-  const skia = useMemo(() => {
-    const bg = Skia.Paint()
-    bg.setColor(Skia.Color('rgba(0,0,0,0.85)'))
-    bg.setAntiAlias(true)
-
-    const div = Skia.Paint()
-    div.setColor(Skia.Color('rgba(255,255,255,0.15)'))
-
-    const text = Skia.Paint()
-    text.setColor(Skia.Color('#ffffff'))
-
-    const circle = Skia.Paint()
-    circle.setAntiAlias(true)
-
-    const scoreBox = Skia.Paint()
-    scoreBox.setColor(Skia.Color('rgba(255,255,255,0.2)'))
-
-    return {
-      bg,
-      div,
-      text,
-      circle,
-      scoreBox,
-      font: Skia.Font(null, 16),
-      fontScore: Skia.Font(null, 22),
-    }
-  }, [])
-
-  // Colores de equipo pre-convertidos a SkColor (número uint32)
+  // Valores compartidos — solo strings/números, sin Skia en el render
   const localScore = useSharedValue(local.score)
   const visitanteScore = useSharedValue(visitante.score)
   const localName = useSharedValue(local.name)
   const visitanteName = useSharedValue(visitante.name)
-  const localColorVal = useSharedValue(Skia.Color(local.color))
-  const visitanteColorVal = useSharedValue(Skia.Color(visitante.color))
+  const localColor = useSharedValue(local.color)
+  const visitanteColor = useSharedValue(visitante.color)
 
   useEffect(() => { localScore.value = local.score }, [local.score])
   useEffect(() => { visitanteScore.value = visitante.score }, [visitante.score])
   useEffect(() => { localName.value = local.name }, [local.name])
   useEffect(() => { visitanteName.value = visitante.name }, [visitante.name])
-  useEffect(() => { localColorVal.value = Skia.Color(local.color) }, [local.color])
-  useEffect(() => { visitanteColorVal.value = Skia.Color(visitante.color) }, [visitante.color])
+  useEffect(() => { localColor.value = local.color }, [local.color])
+  useEffect(() => { visitanteColor.value = visitante.color }, [visitante.color])
 
   useEffect(() => {
     if (!hasPermission) requestPermission()
@@ -82,19 +54,34 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return () => clearInterval(id)
   }, [recording])
 
+  // Objetos Skia creados dentro del worklet (como en builds anteriores que funcionaban)
   const frameProcessor = useSkiaFrameProcessor((frame) => {
     'worklet'
     frame.render()
 
+    const bgPaint = Skia.Paint()
+    bgPaint.setColor(Skia.Color('#000000'))
+    bgPaint.setAlphaf(0.85)
+    bgPaint.setAntiAlias(true)
     frame.drawRRect(
       Skia.RRectXY(Skia.XYWHRect(BANNER_X, BANNER_Y, BANNER_W, BANNER_H), 8, 8),
-      skia.bg
+      bgPaint
     )
-    frame.drawRect(Skia.XYWHRect(BANNER_X, BANNER_Y + ROW_H, BANNER_W, 1), skia.div)
+
+    const divPaint = Skia.Paint()
+    divPaint.setColor(Skia.Color('#ffffff'))
+    divPaint.setAlphaf(0.15)
+    frame.drawRect(Skia.XYWHRect(BANNER_X, BANNER_Y + ROW_H, BANNER_W, 1), divPaint)
+
+    const textPaint = Skia.Paint()
+    textPaint.setColor(Skia.Color('#ffffff'))
+
+    const font = Skia.Font(null, 16)
+    const fontScore = Skia.Font(null, 22)
 
     const teams = [
-      { name: localName.value, score: localScore.value, color: localColorVal.value },
-      { name: visitanteName.value, score: visitanteScore.value, color: visitanteColorVal.value },
+      { name: localName.value, score: localScore.value, color: localColor.value },
+      { name: visitanteName.value, score: visitanteScore.value, color: visitanteColor.value },
     ]
 
     for (let i = 0; i < 2; i++) {
@@ -102,16 +89,24 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
       const ry = BANNER_Y + i * ROW_H
       const cy = ry + ROW_H / 2
 
-      skia.circle.setColor(team.color)
-      frame.drawCircle(BANNER_X + 26, cy, 12, skia.circle)
-      frame.drawText(team.name, BANNER_X + 44, cy + 6, skia.font, skia.text)
+      const circlePaint = Skia.Paint()
+      circlePaint.setColor(Skia.Color(team.color))
+      circlePaint.setAntiAlias(true)
+      frame.drawCircle(BANNER_X + 26, cy, 12, circlePaint)
+
+      frame.drawText(team.name, BANNER_X + 44, cy + 6, font, textPaint)
+
+      const scoreBoxPaint = Skia.Paint()
+      scoreBoxPaint.setColor(Skia.Color('#ffffff'))
+      scoreBoxPaint.setAlphaf(0.2)
       frame.drawRRect(
         Skia.RRectXY(Skia.XYWHRect(BANNER_X + BANNER_W - 44, ry + 8, 36, ROW_H - 16), 4, 4),
-        skia.scoreBox
+        scoreBoxPaint
       )
-      frame.drawText(String(team.score), BANNER_X + BANNER_W - 34, cy + 8, skia.fontScore, skia.text)
+
+      frame.drawText(String(team.score), BANNER_X + BANNER_W - 34, cy + 8, fontScore, textPaint)
     }
-  }, [localScore, visitanteScore, localName, visitanteName, localColorVal, visitanteColorVal, skia])
+  }, [localScore, visitanteScore, localName, visitanteName, localColor, visitanteColor])
 
   const startRecording = () => {
     if (!cameraRef.current) return
@@ -178,11 +173,10 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         audio={true}
         zoom={zoom}
         frameProcessor={noOverlay ? undefined : frameProcessor}
-        pixelFormat={noOverlay ? undefined : 'rgb'}
       />
 
       <TouchableOpacity
-        style={[s.diagBtn, noOverlay && s.diagBtnActive]}
+        style={[s.diagBtn, !noOverlay && s.diagBtnActive]}
         onPress={() => { if (!recording) setNoOverlay(v => !v) }}
       >
         <Text style={s.diagText}>{noOverlay ? 'SIN OVERLAY' : 'CON OVERLAY'}</Text>
@@ -242,12 +236,12 @@ const s = StyleSheet.create({
   permBtnText: { color: '#1a1a2e', fontWeight: 'bold' },
   diagBtn: {
     position: 'absolute', top: 12, right: 12,
-    paddingHorizontal: 8, paddingVertical: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 6,
-    borderWidth: 1, borderColor: '#555',
+    paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6,
+    borderWidth: 1, borderColor: '#666',
   },
   diagBtnActive: { borderColor: '#f0c040' },
-  diagText: { color: '#888', fontSize: 10 },
+  diagText: { color: '#ccc', fontSize: 11, fontWeight: 'bold' },
   controls: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'flex-end',
