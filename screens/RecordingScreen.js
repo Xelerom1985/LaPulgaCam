@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { useCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
 import { useSharedValue } from 'react-native-worklets-core'
@@ -27,10 +27,10 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const [noOverlay, setNoOverlay] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
 
-  // Auto-retry si la cámara no se detectó justo después de dar permisos
+  // Retry infinito hasta que aparezca la cámara (600ms entre intentos)
   useEffect(() => {
-    if (hasPermission && !device && retryCount < 8) {
-      const t = setTimeout(() => setRetryCount(c => c + 1), 800)
+    if (hasPermission && !device) {
+      const t = setTimeout(() => setRetryCount(c => c + 1), 600)
       return () => clearTimeout(t)
     }
   }, [hasPermission, device, retryCount])
@@ -163,10 +163,18 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   }
 
   if (!device) {
+    if (retryCount < 20) {
+      return (
+        <View style={s.center}>
+          <ActivityIndicator size="large" color="#f0c040" />
+          <Text style={s.permText}>Buscando cámara...</Text>
+        </View>
+      )
+    }
     return (
       <View style={s.center}>
         <Text style={s.permText}>No se encontró cámara</Text>
-        <TouchableOpacity style={s.permBtn} onPress={() => setRetryCount(c => c + 1)}>
+        <TouchableOpacity style={s.permBtn} onPress={() => setRetryCount(0)}>
           <Text style={s.permBtnText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
