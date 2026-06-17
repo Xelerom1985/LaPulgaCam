@@ -2,7 +2,6 @@ import { useRef, useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, AppState } from 'react-native'
 import { useCameraDevice, useCameraDevices, getCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
-import { useSharedValue } from 'react-native-worklets-core'
 
 const BANNER_X = 16
 const BANNER_Y = 16
@@ -25,7 +24,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const [elapsed, setElapsed] = useState(0)
   const [zoom, setZoom] = useState(1)
   const startTimeRef = useRef(null)
-  // SIN OVERLAY por defecto — el usuario activa CON OVERLAY cuando quiera probarlo
   const [noOverlay, setNoOverlay] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
   const [isAppActive, setIsAppActive] = useState(true)
@@ -66,33 +64,25 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return () => clearInterval(id)
   }, [recording])
 
-  // Valores compartidos para el worklet (números/strings solamente)
-  const localScore = useSharedValue(local.score)
-  const visitanteScore = useSharedValue(visitante.score)
-  const localName = useSharedValue(local.name)
-  const visitanteName = useSharedValue(visitante.name)
-  const localColor = useSharedValue(local.color)
-  const visitanteColor = useSharedValue(visitante.color)
-
-  useEffect(() => { localScore.value = local.score }, [local.score])
-  useEffect(() => { visitanteScore.value = visitante.score }, [visitante.score])
-  useEffect(() => { localName.value = local.name }, [local.name])
-  useEffect(() => { visitanteName.value = visitante.name }, [visitante.name])
-  useEffect(() => { localColor.value = local.color }, [local.color])
-  useEffect(() => { visitanteColor.value = visitante.color }, [visitante.color])
+  // Valores capturados directamente como dependencias del worklet (números y strings
+  // son serializables — no necesitamos useSharedValue de worklets-core)
+  const lName = local.name
+  const lScore = local.score
+  const lColor = local.color
+  const vName = visitante.name
+  const vScore = visitante.score
+  const vColor = visitante.color
 
   const frameProcessor = useSkiaFrameProcessor((frame) => {
     'worklet'
     frame.render()
 
-    // Fondo del banner
     const bg = Skia.Paint()
     bg.setColor(Skia.Color('#000000'))
     bg.setAlphaf(0.82)
     bg.setAntiAlias(true)
     frame.drawRRect(Skia.RRectXY(Skia.XYWHRect(BANNER_X, BANNER_Y, BANNER_W, BANNER_H), 8, 8), bg)
 
-    // Divisor central
     const div = Skia.Paint()
     div.setColor(Skia.Color('#ffffff'))
     div.setAlphaf(0.18)
@@ -104,8 +94,8 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     const fontScore = Skia.Font(null, 22)
 
     const teams = [
-      { name: localName.value, score: localScore.value, color: localColor.value },
-      { name: visitanteName.value, score: visitanteScore.value, color: visitanteColor.value },
+      { name: lName, score: lScore, color: lColor },
+      { name: vName, score: vScore, color: vColor },
     ]
 
     for (let i = 0; i < 2; i++) {
@@ -113,16 +103,13 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
       const ry = BANNER_Y + i * ROW_H
       const cy = ry + ROW_H / 2
 
-      // Círculo de color del equipo
       const cp = Skia.Paint()
       cp.setColor(Skia.Color(team.color))
       cp.setAntiAlias(true)
       frame.drawCircle(BANNER_X + 24, cy, 11, cp)
 
-      // Nombre del equipo
       frame.drawText(team.name, BANNER_X + 42, cy + 6, font, textPaint)
 
-      // Caja del marcador
       const sp = Skia.Paint()
       sp.setColor(Skia.Color('#ffffff'))
       sp.setAlphaf(0.18)
@@ -132,7 +119,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
       )
       frame.drawText(String(team.score), BANNER_X + BANNER_W - 36, cy + 8, fontScore, textPaint)
     }
-  }, [localScore, visitanteScore, localName, visitanteName, localColor, visitanteColor])
+  }, [lName, lScore, lColor, vName, vScore, vColor])
 
   const startRecording = () => {
     if (!cameraRef.current) return
@@ -218,7 +205,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         frameProcessor={noOverlay ? undefined : frameProcessor}
       />
 
-      {/* Botón toggle SIN/CON overlay — esquina superior derecha */}
       <TouchableOpacity
         style={[s.overlayBtn, !noOverlay && s.overlayBtnOn]}
         onPress={() => { if (!recording) setNoOverlay(v => !v) }}
