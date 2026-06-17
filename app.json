@@ -29,8 +29,7 @@
         "react-native-vision-camera",
         {
           "cameraPermissionText": "LaPulgaCam necesita acceso a tu cámara para grabar partidos",
-          "enableMicrophonePermission": true,
-          "enableFrameProcessors": true
+          "enableMicrophonePermission": true
         }
       ],
       [
@@ -54,7 +53,8 @@
         "expo-build-properties",
         {
           "android": {
-            "newArchEnabled": false
+            "newArchEnabled": true,
+            "minSdkVersion": 26
           }
         }
       ],
