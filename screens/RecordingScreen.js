@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, AppState } from 'react-native'
 import { useCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
 import { useSharedValue } from 'react-native-worklets-core'
@@ -23,14 +23,24 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const [elapsed, setElapsed] = useState(0)
   const [zoom, setZoom] = useState(1)
   const startTimeRef = useRef(null)
-  // Empieza en SIN OVERLAY para probar grabación básica primero
-  const [noOverlay, setNoOverlay] = useState(true)
+  const [noOverlay, setNoOverlay] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const [isAppActive, setIsAppActive] = useState(true)
 
-  // Retry infinito hasta que aparezca la cámara (600ms entre intentos)
+  // Liberar/readquirir cámara cuando la app pasa a background/foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      const active = state === 'active'
+      setIsAppActive(active)
+      if (active) setRetryCount(0) // Reinicia detección al volver al frente
+    })
+    return () => sub.remove()
+  }, [])
+
+  // Retry cada 300ms hasta que aparezca la cámara
   useEffect(() => {
     if (hasPermission && !device) {
-      const t = setTimeout(() => setRetryCount(c => c + 1), 600)
+      const t = setTimeout(() => setRetryCount(c => c + 1), 300)
       return () => clearTimeout(t)
     }
   }, [hasPermission, device, retryCount])
@@ -188,7 +198,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
-        isActive={true}
+        isActive={isAppActive || recording}
         video={true}
         audio={true}
         zoom={zoom}

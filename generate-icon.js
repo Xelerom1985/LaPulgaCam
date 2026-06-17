@@ -77,43 +77,35 @@ async function main() {
   floodFillTransparent(shield.bitmap, 0, shield.height - 1, 40);
   floodFillTransparent(shield.bitmap, shield.width - 1, shield.height - 1, 40);
 
+  // Escudo a 460px de ancho — entra en la zona segura del icono adaptativo
   console.log('Redimensionando escudo...');
-  shield.resize({ w: 500 });
+  shield.resize({ w: 460 });
   console.log(`Escudo redimensionado: ${shield.width}x${shield.height}`);
 
   console.log('Creando canvas...');
   const icon = new Jimp({ width: 1024, height: 1024, color: 0x0d0d0dff });
 
+  // shieldY=170 → el escudo entra dentro de la zona segura (circle r=338 centrado en 512)
   const shieldX = Math.floor((1024 - shield.width) / 2);
-  const shieldY = 20;
-  console.log(`Escudo en (${shieldX}, ${shieldY})`);
+  const shieldY = 170;
+  console.log(`Escudo en (${shieldX}, ${shieldY}), ${shield.width}x${shield.height}`);
   icon.composite(shield, shieldX, shieldY);
 
-  // Camara de video debajo del escudo
-  const camY = shieldY + shield.height + 70;
+  // Cámara justo debajo del escudo
+  const camY = shieldY + shield.height + 60;
   const camX = 512;
   console.log(`Camara en (${camX}, ${camY})`);
 
-  fillRect(icon.bitmap, camX-115, camY-52, 190, 104, 0x9b2424ff);
-  fillRect(icon.bitmap, camX-108, camY-45, 176, 90, 0xb03030ff);
-  fillCircle(icon.bitmap, camX-28, camY, 46, 0x5a1515ff);
-  fillCircle(icon.bitmap, camX-28, camY, 34, 0x0d0d0dff);
-  fillCircle(icon.bitmap, camX-28, camY, 22, 0x1a0707ff);
-  fillCircle(icon.bitmap, camX-37, camY-12, 6, 0xffffff44);
-  fillRect(icon.bitmap, camX-50, camY-70, 44, 20, 0x5a1515ff);
-  fillCircle(icon.bitmap, camX+70, camY-38, 17, 0xcc2222ff);
-  fillCircle(icon.bitmap, camX+70, camY-38, 11, 0xff4444ff);
-  fillTriangle(icon.bitmap, camX+94,camY-40, camX+94,camY+40, camX+145,camY, 0x7b1c1cff);
-
-  console.log('Cargando fuente...');
-  const font = await loadFont(FONT_PATH);
-  const txt = 'LaPulgaCam';
-  const tw = measureText(font, txt);
-  const th = measureTextHeight(font, txt, 600);
-  const textX = Math.floor((1024 - tw) / 2);
-  const textY = 1024 - th - 28;
-  console.log(`Texto en (${textX}, ${textY}), ${tw}x${th}`);
-  icon.print({ font, x: textX, y: textY, text: txt });
+  fillRect(icon.bitmap, camX-100, camY-45, 165, 90, 0x9b2424ff);
+  fillRect(icon.bitmap, camX-94, camY-39, 153, 78, 0xb03030ff);
+  fillCircle(icon.bitmap, camX-24, camY, 40, 0x5a1515ff);
+  fillCircle(icon.bitmap, camX-24, camY, 29, 0x0d0d0dff);
+  fillCircle(icon.bitmap, camX-24, camY, 18, 0x1a0707ff);
+  fillCircle(icon.bitmap, camX-32, camY-10, 5, 0xffffff44);
+  fillRect(icon.bitmap, camX-42, camY-58, 36, 14, 0x5a1515ff);
+  fillCircle(icon.bitmap, camX+60, camY-30, 14, 0xcc2222ff);
+  fillCircle(icon.bitmap, camX+60, camY-30, 9, 0xff4444ff);
+  fillTriangle(icon.bitmap, camX+80,camY-32, camX+80,camY+32, camX+120,camY, 0x7b1c1cff);
 
   console.log('Guardando icon.png...');
   await icon.write('assets/icon.png');
