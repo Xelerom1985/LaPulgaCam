@@ -25,6 +25,15 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const startTimeRef = useRef(null)
   // Empieza en SIN OVERLAY para probar grabación básica primero
   const [noOverlay, setNoOverlay] = useState(true)
+  const [retryCount, setRetryCount] = useState(0)
+
+  // Auto-retry si la cámara no se detectó justo después de dar permisos
+  useEffect(() => {
+    if (hasPermission && !device && retryCount < 8) {
+      const t = setTimeout(() => setRetryCount(c => c + 1), 800)
+      return () => clearTimeout(t)
+    }
+  }, [hasPermission, device, retryCount])
 
   // Valores compartidos — solo strings/números, sin Skia en el render
   const localScore = useSharedValue(local.score)
@@ -157,6 +166,9 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return (
       <View style={s.center}>
         <Text style={s.permText}>No se encontró cámara</Text>
+        <TouchableOpacity style={s.permBtn} onPress={() => setRetryCount(c => c + 1)}>
+          <Text style={s.permBtnText}>Reintentar</Text>
+        </TouchableOpacity>
       </View>
     )
   }
