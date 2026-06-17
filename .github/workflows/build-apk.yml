@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -43,6 +43,15 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
+      - name: Cache CMake (New Architecture C++ build)
+        uses: actions/cache@v4
+        with:
+          path: |
+            android/app/.cxx
+            android/app/build/intermediates/cmake
+          key: ${{ runner.os }}-cmake-${{ hashFiles('android/app/src/main/jni/**', 'android/app/build.gradle') }}
+          restore-keys: ${{ runner.os }}-cmake-
+
       - name: Install npm dependencies
         run: npm install --legacy-peer-deps
 
@@ -64,13 +73,13 @@ jobs:
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleRelease --no-daemon \
+          ./gradlew assembleRelease --no-daemon --parallel \
             -Pandroid.injected.signing.store.file=/tmp/lapulga.keystore \
             -Pandroid.injected.signing.store.password=lapulga123 \
             -Pandroid.injected.signing.key.alias=lapulga \
             -Pandroid.injected.signing.key.password=lapulga123
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.workers.max=2"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
