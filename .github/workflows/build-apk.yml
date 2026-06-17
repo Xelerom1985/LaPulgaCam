@@ -46,6 +46,12 @@ jobs:
       - name: Install npm dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Generate icon PNG from SVG
+        run: |
+          sudo apt-get install -y -q librsvg2-bin fonts-liberation
+          rsvg-convert -w 1024 -h 1024 assets/icon.svg -o assets/icon.png
+          cp assets/icon.png assets/android-icon-foreground.png
+
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --no-install
         env:
