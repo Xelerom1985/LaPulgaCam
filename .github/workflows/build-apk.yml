@@ -51,17 +51,30 @@ jobs:
         env:
           EXPO_NO_TELEMETRY: 1
 
-      - name: Build APK
+      - name: Generate signing keystore
+        run: |
+          keytool -genkey -v \
+            -keystore /tmp/lapulga.keystore \
+            -alias lapulga \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass lapulga123 -keypass lapulga123 \
+            -dname "CN=LaPulgaCam,O=LaPulgaCam,C=AR"
+
+      - name: Build Release APK
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=/tmp/lapulga.keystore \
+            -Pandroid.injected.signing.store.password=lapulga123 \
+            -Pandroid.injected.signing.key.alias=lapulga \
+            -Pandroid.injected.signing.key.password=lapulga123
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: LaPulgaCam-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: LaPulgaCam
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
