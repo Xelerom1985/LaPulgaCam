@@ -14,7 +14,7 @@ function fmt(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function RecordingScreen({ local, setLocal, visitante, setVisitante, bannerBg, onStop }) {
+export default function RecordingScreen({ local, setLocal, visitante, setVisitante, bannerBg, onStop, onCameraFailed }) {
   const { hasPermission, requestPermission } = useCameraPermission()
   const { hasPermission: hasMicPermission, requestPermission: requestMicPermission } = useMicrophonePermission()
   const device = useCameraDevice('back')
@@ -27,12 +27,22 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const [retryCount, setRetryCount] = useState(0)
   const [isAppActive, setIsAppActive] = useState(true)
 
-  // Liberar/readquirir cámara cuando la app pasa a background/foreground
+  // Refs para leer valores actuales dentro de closures de effects
+  const deviceRef = useRef(device)
+  deviceRef.current = device
+  const recordingRef = useRef(recording)
+  recordingRef.current = recording
+
+  // Liberar cámara en background; al volver al frente forzar remount si aún no hay cámara
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       const active = state === 'active'
       setIsAppActive(active)
-      if (active) setRetryCount(0) // Reinicia detección al volver al frente
+      if (active && !deviceRef.current && !recordingRef.current) {
+        // La detección inicial falló — forzar remount completo para que useCameraDevice
+        // re-lea el listado nativo (que ya debería estar disponible)
+        onCameraFailed?.()
+      }
     })
     return () => sub.remove()
   }, [])
@@ -184,7 +194,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return (
       <View style={s.center}>
         <Text style={s.permText}>No se encontró cámara</Text>
-        <TouchableOpacity style={s.permBtn} onPress={() => setRetryCount(0)}>
+        <TouchableOpacity style={s.permBtn} onPress={() => onCameraFailed?.()}>
           <Text style={s.permBtnText}>Reintentar</Text>
         </TouchableOpacity>
       </View>

@@ -17,6 +17,7 @@ export default function App() {
   const [visitante, setVisitante] = useState(makeTeam('visitante'))
   const [videoPath, setVideoPath] = useState(null)
   const [bannerBg, setBannerBg] = useState('#111111')
+  const [cameraKey, setCameraKey] = useState(0)
 
   const handleStart = () => {
     setLocal(t => ({ ...t, score: 0 }))
@@ -34,10 +35,12 @@ export default function App() {
       <>
         <StatusBar hidden />
         <RecordingScreen
+          key={cameraKey}
           local={local} setLocal={setLocal}
           visitante={visitante} setVisitante={setVisitante}
           bannerBg={bannerBg}
           onStop={handleStop}
+          onCameraFailed={() => setCameraKey(k => k + 1)}
         />
       </>
     )
