@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, AppState } from 'react-native'
-import { useCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
+import { useCameraDevice, useCameraDevices, getCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
 import { Skia } from '@shopify/react-native-skia'
 import { useSharedValue } from 'react-native-worklets-core'
 
@@ -17,7 +17,10 @@ function fmt(s) {
 export default function RecordingScreen({ local, setLocal, visitante, setVisitante, bannerBg, onStop, onCameraFailed }) {
   const { hasPermission, requestPermission } = useCameraPermission()
   const { hasPermission: hasMicPermission, requestPermission: requestMicPermission } = useMicrophonePermission()
-  const device = useCameraDevice('back')
+  const allDevices = useCameraDevices()
+  const vcDevice = useCameraDevice('back')
+  // Fallback: si el hook pierde el evento inicial, intentar con getCameraDevice o cualquier cámara disponible
+  const device = vcDevice ?? getCameraDevice(allDevices, 'back') ?? allDevices[0]
   const cameraRef = useRef(null)
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -194,6 +197,13 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     return (
       <View style={s.center}>
         <Text style={s.permText}>No se encontró cámara</Text>
+        <Text style={s.debugInfo}>
+          Permisos: {hasPermission ? 'CAM ✓' : 'CAM ✗'} {hasMicPermission ? 'MIC ✓' : 'MIC ✗'}
+        </Text>
+        <Text style={s.debugInfo}>
+          Cámaras detectadas: {allDevices.length}
+          {allDevices.length > 0 ? ` [${allDevices.map(d => d.position).join(', ')}]` : ''}
+        </Text>
         <TouchableOpacity style={s.permBtn} onPress={() => onCameraFailed?.()}>
           <Text style={s.permBtnText}>Reintentar</Text>
         </TouchableOpacity>
@@ -272,6 +282,7 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, backgroundColor: '#1a1a2e', alignItems: 'center', justifyContent: 'center', gap: 16 },
   permText: { color: '#fff', fontSize: 16 },
+  debugInfo: { color: '#aaa', fontSize: 12, textAlign: 'center' },
   permBtn: { backgroundColor: '#f0c040', padding: 12, borderRadius: 10 },
   permBtnText: { color: '#1a1a2e', fontWeight: 'bold' },
   diagBtn: {

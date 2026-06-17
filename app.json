@@ -26,6 +26,14 @@
     },
     "plugins": [
       [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "LaPulgaCam necesita acceso a tu cámara para grabar partidos",
+          "enableMicrophonePermission": true,
+          "enableFrameProcessors": true
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Permite guardar los videos del partido en tu galería",
