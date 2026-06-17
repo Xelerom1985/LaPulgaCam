@@ -1,14 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, AppState } from 'react-native'
-import { useCameraDevice, useCameraDevices, getCameraDevice, useCameraPermission, useMicrophonePermission, Camera, useSkiaFrameProcessor } from 'react-native-vision-camera'
-import { Skia } from '@shopify/react-native-skia'
-import { useSharedValue } from 'react-native-worklets-core'
-
-const BANNER_X = 16
-const BANNER_Y = 16
-const BANNER_W = 280
-const BANNER_H = 90
-const ROW_H = 44
+import { useCameraDevice, useCameraDevices, getCameraDevice, useCameraPermission, useMicrophonePermission, Camera } from 'react-native-vision-camera'
 
 function fmt(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -19,59 +11,37 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   const { hasPermission: hasMicPermission, requestPermission: requestMicPermission } = useMicrophonePermission()
   const allDevices = useCameraDevices()
   const vcDevice = useCameraDevice('back')
-  // Fallback: si el hook pierde el evento inicial, intentar con getCameraDevice o cualquier cámara disponible
   const device = vcDevice ?? getCameraDevice(allDevices, 'back') ?? allDevices[0]
   const cameraRef = useRef(null)
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [zoom, setZoom] = useState(1)
   const startTimeRef = useRef(null)
-  const [noOverlay, setNoOverlay] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [isAppActive, setIsAppActive] = useState(true)
 
-  // Refs para leer valores actuales dentro de closures de effects
   const deviceRef = useRef(device)
   deviceRef.current = device
   const recordingRef = useRef(recording)
   recordingRef.current = recording
 
-  // Liberar cámara en background; al volver al frente forzar remount si aún no hay cámara
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       const active = state === 'active'
       setIsAppActive(active)
       if (active && !deviceRef.current && !recordingRef.current) {
-        // La detección inicial falló — forzar remount completo para que useCameraDevice
-        // re-lea el listado nativo (que ya debería estar disponible)
         onCameraFailed?.()
       }
     })
     return () => sub.remove()
   }, [])
 
-  // Retry cada 300ms hasta que aparezca la cámara
   useEffect(() => {
     if (hasPermission && !device) {
       const t = setTimeout(() => setRetryCount(c => c + 1), 300)
       return () => clearTimeout(t)
     }
   }, [hasPermission, device, retryCount])
-
-  // Valores compartidos — solo strings/números, sin Skia en el render
-  const localScore = useSharedValue(local.score)
-  const visitanteScore = useSharedValue(visitante.score)
-  const localName = useSharedValue(local.name)
-  const visitanteName = useSharedValue(visitante.name)
-  const localColor = useSharedValue(local.color)
-  const visitanteColor = useSharedValue(visitante.color)
-
-  useEffect(() => { localScore.value = local.score }, [local.score])
-  useEffect(() => { visitanteScore.value = visitante.score }, [visitante.score])
-  useEffect(() => { localName.value = local.name }, [local.name])
-  useEffect(() => { visitanteName.value = visitante.name }, [visitante.name])
-  useEffect(() => { localColor.value = local.color }, [local.color])
-  useEffect(() => { visitanteColor.value = visitante.color }, [visitante.color])
 
   useEffect(() => {
     if (!hasPermission) requestPermission()
@@ -85,60 +55,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
     }, 500)
     return () => clearInterval(id)
   }, [recording])
-
-  // Objetos Skia creados dentro del worklet (como en builds anteriores que funcionaban)
-  const frameProcessor = useSkiaFrameProcessor((frame) => {
-    'worklet'
-    frame.render()
-
-    const bgPaint = Skia.Paint()
-    bgPaint.setColor(Skia.Color('#000000'))
-    bgPaint.setAlphaf(0.85)
-    bgPaint.setAntiAlias(true)
-    frame.drawRRect(
-      Skia.RRectXY(Skia.XYWHRect(BANNER_X, BANNER_Y, BANNER_W, BANNER_H), 8, 8),
-      bgPaint
-    )
-
-    const divPaint = Skia.Paint()
-    divPaint.setColor(Skia.Color('#ffffff'))
-    divPaint.setAlphaf(0.15)
-    frame.drawRect(Skia.XYWHRect(BANNER_X, BANNER_Y + ROW_H, BANNER_W, 1), divPaint)
-
-    const textPaint = Skia.Paint()
-    textPaint.setColor(Skia.Color('#ffffff'))
-
-    const font = Skia.Font(null, 16)
-    const fontScore = Skia.Font(null, 22)
-
-    const teams = [
-      { name: localName.value, score: localScore.value, color: localColor.value },
-      { name: visitanteName.value, score: visitanteScore.value, color: visitanteColor.value },
-    ]
-
-    for (let i = 0; i < 2; i++) {
-      const team = teams[i]
-      const ry = BANNER_Y + i * ROW_H
-      const cy = ry + ROW_H / 2
-
-      const circlePaint = Skia.Paint()
-      circlePaint.setColor(Skia.Color(team.color))
-      circlePaint.setAntiAlias(true)
-      frame.drawCircle(BANNER_X + 26, cy, 12, circlePaint)
-
-      frame.drawText(team.name, BANNER_X + 44, cy + 6, font, textPaint)
-
-      const scoreBoxPaint = Skia.Paint()
-      scoreBoxPaint.setColor(Skia.Color('#ffffff'))
-      scoreBoxPaint.setAlphaf(0.2)
-      frame.drawRRect(
-        Skia.RRectXY(Skia.XYWHRect(BANNER_X + BANNER_W - 44, ry + 8, 36, ROW_H - 16), 4, 4),
-        scoreBoxPaint
-      )
-
-      frame.drawText(String(team.score), BANNER_X + BANNER_W - 34, cy + 8, fontScore, textPaint)
-    }
-  }, [localScore, visitanteScore, localName, visitanteName, localColor, visitanteColor])
 
   const startRecording = () => {
     if (!cameraRef.current) return
@@ -201,8 +117,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
           Permisos: {hasPermission ? 'CAM ✓' : 'CAM ✗'} {hasMicPermission ? 'MIC ✓' : 'MIC ✗'}
         </Text>
         <Text style={s.debugInfo}>
-          Cámaras detectadas: {allDevices.length}
-          {allDevices.length > 0 ? ` [${allDevices.map(d => d.position).join(', ')}]` : ''}
+          Cámaras: {allDevices.length}{allDevices.length > 0 ? ` [${allDevices.map(d => d.position).join(', ')}]` : ''}
         </Text>
         <TouchableOpacity style={s.permBtn} onPress={() => onCameraFailed?.()}>
           <Text style={s.permBtnText}>Reintentar</Text>
@@ -214,7 +129,6 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
   return (
     <View style={s.container}>
       <Camera
-        key={noOverlay ? 'nofp' : 'fp'}
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
@@ -222,15 +136,7 @@ export default function RecordingScreen({ local, setLocal, visitante, setVisitan
         video={true}
         audio={true}
         zoom={zoom}
-        frameProcessor={noOverlay ? undefined : frameProcessor}
       />
-
-      <TouchableOpacity
-        style={[s.diagBtn, !noOverlay && s.diagBtnActive]}
-        onPress={() => { if (!recording) setNoOverlay(v => !v) }}
-      >
-        <Text style={s.diagText}>{noOverlay ? 'SIN OVERLAY' : 'CON OVERLAY'}</Text>
-      </TouchableOpacity>
 
       <View style={s.controls}>
         <View style={s.scoreGroup}>
@@ -285,14 +191,6 @@ const s = StyleSheet.create({
   debugInfo: { color: '#aaa', fontSize: 12, textAlign: 'center' },
   permBtn: { backgroundColor: '#f0c040', padding: 12, borderRadius: 10 },
   permBtnText: { color: '#1a1a2e', fontWeight: 'bold' },
-  diagBtn: {
-    position: 'absolute', top: 12, right: 12,
-    paddingHorizontal: 10, paddingVertical: 6,
-    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6,
-    borderWidth: 1, borderColor: '#666',
-  },
-  diagBtnActive: { borderColor: '#f0c040' },
-  diagText: { color: '#ccc', fontSize: 11, fontWeight: 'bold' },
   controls: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'flex-end',
