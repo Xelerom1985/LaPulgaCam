@@ -29,7 +29,8 @@
         "react-native-vision-camera",
         {
           "cameraPermissionText": "LaPulgaCam necesita acceso a tu cámara para grabar partidos",
-          "enableMicrophonePermission": true
+          "enableMicrophonePermission": true,
+          "enableFrameProcessors": true
         }
       ],
       [
